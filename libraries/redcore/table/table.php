@@ -736,6 +736,53 @@ class RTable extends JTable
 	 */
 	private function doDelete($pk = null)
 	{
+		$pk = $this->getSanitizedPk($pk);
+
+		// If no primary key is given, return false.
+		if ($pk === null)
+		{
+			return false;
+		}
+
+		// Delete the row by primary key.
+		$query = $this->_db->getQuery(true);
+		$query->delete($this->_db->quoteName($this->_tbl));
+
+		if (is_array($pk))
+		{
+			foreach ($pk AS $key => $value)
+			{
+				$query->where($this->_db->quoteName($key) . ' = ' . $this->_db->quote($value));
+			}
+		}
+		else
+		{
+			$query->where($this->_db->quoteName($this->_tbl_key) . ' IN (' . $pk . ')');
+		}
+
+		$this->_db->setQuery($query);
+		$this->_db->execute();
+
+		// Check for a database error.
+		if ($this->_db->getErrorNum())
+		{
+			$this->setError($this->_db->getErrorMsg());
+
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Sanitize the key for delete functions
+	 *
+	 * @param   mixed  $pk  An optional primary key value to delete.  If not set the instance property value is used.
+	 *
+	 * @return null|string
+	 */
+	protected function getSanitizedPk($pk = null)
+	{
 		// Initialise variables.
 		$k = $this->_tbl_key;
 
@@ -774,7 +821,6 @@ class RTable extends JTable
 				JArrayHelper::toInteger($pk);
 				$pk = RHelperArray::quote($pk);
 				$pk = implode(',', $pk);
-				$multipleDelete = true;
 			}
 			// Try the instance property value
 			elseif (empty($pk) && $this->{$k})
@@ -783,40 +829,7 @@ class RTable extends JTable
 			}
 		}
 
-		// If no primary key is given, return false.
-		if ($pk === null)
-		{
-			return false;
-		}
-
-		// Delete the row by primary key.
-		$query = $this->_db->getQuery(true);
-		$query->delete($this->_db->quoteName($this->_tbl));
-
-		if ($multiplePrimaryKeys)
-		{
-			foreach ($this->_tbl_keys AS $k)
-			{
-				$query->where($this->_db->quoteName($k) . ' = ' . $this->_db->quote($pk[$k]));
-			}
-		}
-		else
-		{
-			$query->where($this->_db->quoteName($this->_tbl_key) . ' IN (' . $pk . ')');
-		}
-
-		$this->_db->setQuery($query);
-		$this->_db->execute();
-
-		// Check for a database error.
-		if ($this->_db->getErrorNum())
-		{
-			$this->setError($this->_db->getErrorMsg());
-
-			return false;
-		}
-
-		return true;
+		return $pk;
 	}
 
 	/**
